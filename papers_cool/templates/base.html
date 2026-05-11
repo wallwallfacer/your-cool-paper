@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{% block title %}papers.cool (local){% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css" />
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
+</head>
+<body>
+{% block body %}{% endblock %}
+
+<footer class="app-bar" id="app-bar">
+  <a class="bar-btn" href="/" title="Home">🏠</a>
+  <button class="bar-btn" data-panel="search-panel" title="Search">🔍</button>
+  <button class="bar-btn" data-panel="star-panel" title="Stars">⭐<span class="star-count" id="star-count"></span></button>
+  <button class="bar-btn" data-panel="settings-panel" title="Settings">⚙️</button>
+  <button class="bar-btn" id="scroll-top" title="Top">▲</button>
+  <button class="bar-btn" id="scroll-bottom" title="Bottom">▼</button>
+</footer>
+
+<div class="panel" id="search-panel" hidden>
+  <div class="panel-inner">
+    <h3>Search & Filter</h3>
+    <label>Include (OR, comma-separated)
+      <input id="f-include" placeholder="retrieval, DPO, embedding" />
+    </label>
+    <label>Exclude (comma-separated)
+      <input id="f-exclude" placeholder="survey, benchmark" />
+    </label>
+    <label>Highlight (comma-separated)
+      <input id="f-highlight" placeholder="retrieval, embedding" />
+    </label>
+    <label class="row">
+      <input type="checkbox" id="f-filter-on" />
+      <span>Filter mode (hide non-matching)</span>
+    </label>
+    <div class="row">
+      <button id="apply-filter">Apply</button>
+      <button id="clear-filter">Clear</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="star-panel" hidden>
+  <div class="panel-inner">
+    <h3>Starred (<span id="star-list-count">0</span>)</h3>
+    <ul id="star-list"></ul>
+    <div class="row">
+      <button id="export-stars">Export URL</button>
+      <button id="clear-stars">Clear</button>
+    </div>
+    <p class="hint">Click [PDF] or [AI] auto-stars a paper. Export bundles them into a shareable URL.</p>
+  </div>
+</div>
+
+<div class="panel" id="settings-panel" hidden>
+  <div class="panel-inner">
+    <h3>Settings</h3>
+    <label>AI output language
+      <select id="set-ai-lang">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+    <p class="hint">Endpoint, model and key live in <code>~/.papers-cool/.env</code>.</p>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

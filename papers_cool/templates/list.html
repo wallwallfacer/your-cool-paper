@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ category_slug }} · papers.cool{% endblock %}
+{% block body %}
+<header class="page-header">
+  <h1>
+    <a href="/" class="home-link">papers.cool</a>
+    <span class="sep">/</span>
+    <span class="cat-name">{{ category_slug }}</span>
+  </h1>
+  <div class="meta-row">
+    <span class="dim">{{ papers|length }} papers</span>
+    {% if date %}<span class="dim">· {{ date }}</span>{% endif %}
+    {% if available_dates and available_dates|length > 1 %}
+      <select onchange="if(this.value) location.search='?date='+this.value;">
+        <option value="">jump to date…</option>
+        {% for d in available_dates %}
+          <option value="{{ d }}" {% if d==date %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+  </div>
+  {% if all_categories %}
+    <nav class="cat-nav">
+      {% for cat in all_categories %}
+        <a href="/arxiv/{{ cat }}" class="cat-link {% if cat in categories %}active{% endif %}">{{ cat }}</a>
+      {% endfor %}
+      <a href="/arxiv/{{ all_categories | join(',') }}" class="cat-link">merged</a>
+    </nav>
+  {% endif %}
+</header>
+
+<main id="paper-list">
+{% if papers|length == 0 %}
+  <div class="empty">
+    <p>No papers cached yet for <code>{{ category_slug }}</code>.</p>
+    <p>The fetcher runs daily at 03:00 SGT, or you can pull now:</p>
+    <pre><code>uv run papers-cool fetch {{ category_slug }}</code></pre>
+  </div>
+{% endif %}
+
+{% for paper in papers %}
+  <article class="paper-card" data-id="{{ paper.arxiv_id }}"
+           data-pdf="{{ paper.pdf_url }}" data-abs="{{ paper.abs_url }}">
+    <header class="card-head">
+      <h2 class="paper-title">
+        <span class="paper-num">#{{ loop.index }}</span>
+        <a href="{{ paper.abs_url }}" target="_blank" rel="noopener">{{ paper.title }}</a>
+      </h2>
+      <div class="btn-row">
+        <button class="btn btn-pdf" data-action="pdf">PDF</button>
+        <button class="btn btn-copy" data-action="copy">Copy</button>
+        <button class="btn btn-ai"  data-action="ai">AI</button>
+        <button class="btn btn-rel" data-action="rel">REL</button>
+        <button class="btn btn-star" data-action="star" title="Star">☆</button>
+      </div>
+    </header>
+
+    <div class="authors">{{ paper.authors | join(', ') }}</div>
+    <div class="abstract">{{ paper.abstract }}</div>
+
+    <footer class="card-foot">
+      <span class="subjects">
+        {% for s in paper.subjects %}<span class="subject">{{ s }}</span>{% endfor %}
+      </span>
+      <span class="pub-time" data-utc="{{ paper.publish_utc }}">{{ paper.publish_utc }}</span>
+    </footer>
+
+    <section class="pdf-pane" hidden></section>
+    <section class="ai-pane" hidden>
+      <div class="ai-toolbar">
+        <button class="ai-collapse" title="collapse">▾</button>
+        <select class="ai-lang">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+        </select>
+        <button class="ai-regen">Regenerate</button>
+      </div>
+      <div class="ai-content"></div>
+    </section>
+    <section class="rel-pane" hidden></section>
+  </article>
+{% endfor %}
+</main>
+
+<script>
+  window.PAPERS_COOL = {
+    categorySlug: {{ category_slug | tojson }},
+    defaultLang:  {{ default_lang | tojson }},
+    paperIds:     [{% for p in papers %}{{ p.arxiv_id | tojson }}{% if not loop.last %}, {% endif %}{% endfor %}]
+  };
+</script>
+{% endblock %}
