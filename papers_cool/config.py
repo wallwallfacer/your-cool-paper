@@ -47,6 +47,11 @@ class Settings(BaseSettings):
 
     disable_scheduler: bool = False
 
+    # When BOTH are set, every route except /login + /api/auth requires the cookie.
+    # Leave either blank for local-only "no password" mode.
+    site_password: str = ""
+    auth_secret: str = ""
+
     @property
     def data_dir(self) -> Path:
         return _default_data_dir()

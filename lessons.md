@@ -31,6 +31,25 @@
   WorkingDirectory must be edited by hand to match the clone path. Stderr/stdout
   redirect to /tmp so failures are easy to diagnose with `tail -F`.
 
+## Mobile access (cloudflared + cookie gate)
+
+- Mirrored `your-dream-dict`'s pattern: FastAPI middleware checks a
+  `pc_auth` cookie whose value equals `AUTH_SECRET`. If `SITE_PASSWORD` or
+  `AUTH_SECRET` is empty the middleware is a no-op, which keeps the localhost
+  workflow zero-friction.
+- The `/login` form posts `application/x-www-form-urlencoded` so it works
+  without any JS in the public bundle. `/api/auth` sets the cookie with
+  `secure` derived from `x-forwarded-proto` (cloudflared sets this) or the
+  request scheme, matching dream-dict's behaviour.
+- `/api/*` returns 401 JSON instead of redirecting, so XHR/SSE clients can
+  detect expiry without following an HTML redirect chain.
+- Two LaunchAgents: `com.papers-cool.server` and `com.papers-cool.tunnel`.
+  The tunnel script greps its own log to surface the latest
+  `*.trycloudflare.com` URL (`scripts/tunnel-url.sh`).
+- Default `HOST` in the env stays `127.0.0.1`; the run-server wrapper and the
+  server plist override it to `0.0.0.0` so the cloudflared sidecar can reach
+  it. This lets `uv run papers-cool serve` keep the safe default.
+
 ## Open follow-ups
 
 - Wire `[REL]` to a real embedding-based scorer once the corpus grows.

@@ -3,25 +3,22 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.tao.papers-cool</string>
+  <key>Label</key><string>com.papers-cool.server</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/uv</string>
-    <string>run</string>
-    <string>uvicorn</string>
-    <string>papers_cool.main:app</string>
-    <string>--host</string><string>127.0.0.1</string>
-    <string>--port</string><string>8000</string>
+    <!-- Edit the absolute path to your clone of this repo. -->
+    <string>/Users/tao/code/papers-cool/scripts/run-server.sh</string>
   </array>
-  <!-- Edit WorkingDirectory to match where you cloned the repo. -->
   <key>WorkingDirectory</key><string>/Users/tao/code/papers-cool</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOST</key><string>0.0.0.0</string>
+    <key>PORT</key><string>8000</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/papers-cool.log</string>
-  <key>StandardErrorPath</key><string>/tmp/papers-cool.err</string>
+  <key>StandardOutPath</key><string>/Users/tao/Library/Logs/papers-cool/server.log</string>
+  <key>StandardErrorPath</key><string>/Users/tao/Library/Logs/papers-cool/server.err.log</string>
 </dict>
 </plist>

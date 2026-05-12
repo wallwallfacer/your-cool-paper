@@ -54,11 +54,86 @@ uv run papers-cool serve
 
 ## Auto-start (launchd)
 
+Two LaunchAgents — one for the server, one (optional) for the cloudflared
+tunnel. Edit the `WorkingDirectory` and script paths inside each plist to
+match your clone first.
+
 ```bash
-# Edit packaging/com.tao.papers-cool.plist so WorkingDirectory points to your clone
-cp packaging/com.tao.papers-cool.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.tao.papers-cool.plist
+mkdir -p ~/Library/Logs/papers-cool ~/Library/LaunchAgents
+cp packaging/com.papers-cool.server.plist ~/Library/LaunchAgents/
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.papers-cool.server.plist
+
+# Manage via wrapper:
+./scripts/run-server.sh status
+./scripts/run-server.sh restart
+./scripts/run-server.sh logs
 ```
+
+## Mobile / remote access (papers.cool on your phone)
+
+Same pattern as `your-dream-dict`: cloudflared **quick tunnel** + a password
+gate enforced by FastAPI middleware. No domain, no certs, no router config.
+
+### 1. Turn on the password gate
+
+Edit `~/.papers-cool/.env`:
+
+```bash
+SITE_PASSWORD=pickAnythingHumanCanType
+AUTH_SECRET=$(openssl rand -hex 32)   # any long random string
+```
+
+When **both** are set, every route except `/login`, `/api/auth`, `/healthz`,
+and `/static/*` requires the auth cookie. Leave either blank to keep the site
+fully open (useful for plain localhost).
+
+### 2. Bind to 0.0.0.0
+
+```bash
+HOST=0.0.0.0
+```
+
+Or run the helper which already does it:
+
+```bash
+./scripts/run-server.sh run
+```
+
+### 3. Start the cloudflared quick tunnel
+
+```bash
+brew install cloudflared
+
+# Foreground, one-off:
+./scripts/run-tunnel.sh run
+
+# Or background under launchd:
+cp packaging/com.papers-cool.tunnel.plist ~/Library/LaunchAgents/
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.papers-cool.tunnel.plist
+
+./scripts/run-tunnel.sh status
+./scripts/run-tunnel.sh logs
+
+# Print (and optionally copy) the current public URL:
+./scripts/tunnel-url.sh        # → https://something-random.trycloudflare.com
+./scripts/tunnel-url.sh -c     # also pbcopy
+```
+
+Open the URL on your phone, type the `SITE_PASSWORD`, and you're in.
+A quick-tunnel URL is **regenerated on every cloudflared restart** — re-run
+`scripts/tunnel-url.sh` to grab the new one, or pin a named tunnel later.
+
+### 4. Log out
+
+Bottom-bar ⚙️ → **Log out**, or `curl -X POST /api/logout`.
+
+### Notes on auth
+
+- Cookie value = `AUTH_SECRET`, constant-time compared. Single user, so no
+  hashing/JWT — just a long secret.
+- The cookie is `httpOnly`, `sameSite=lax`, and `secure` only when the
+  request came over HTTPS (so localhost-over-http still works).
+- `/api/*` returns `401 JSON` instead of redirecting to `/login`.
 
 ## CLI
 
