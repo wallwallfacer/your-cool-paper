@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{% block title %}papers.cool (local){% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css" />
+<link rel="stylesheet" href="{{ base_path }}/static/style.css" />
+<script>window.BASE_PATH = {{ base_path|tojson }};</script>
 <script>
   window.MathJax = {
     tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
@@ -12,13 +13,13 @@
   };
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
+<script src="{{ base_path }}/static/marked.min.js"></script>
 </head>
 <body>
 {% block body %}{% endblock %}
 
 <footer class="app-bar" id="app-bar">
-  <a class="bar-btn" href="/" title="Home">🏠</a>
+  <a class="bar-btn" href="{{ base_path }}/" title="Home">🏠</a>
   <button class="bar-btn" data-panel="search-panel" title="Search">🔍</button>
   <button class="bar-btn" data-panel="star-panel" title="Stars">⭐<span class="star-count" id="star-count"></span></button>
   <button class="bar-btn" data-panel="settings-panel" title="Settings">⚙️</button>
@@ -71,12 +72,12 @@
       </select>
     </label>
     <p class="hint">Endpoint, model and key live in <code>~/.papers-cool/.env</code>.</p>
-    <form method="post" action="/api/logout" style="margin-top:10px">
+    <form method="post" action="{{ base_path }}/api/logout" style="margin-top:10px">
       <button type="submit">Log out</button>
     </form>
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="{{ base_path }}/static/app.js"></script>
 </body>
 </html>

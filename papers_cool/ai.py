@@ -41,6 +41,17 @@ Requirements:
 """
 
 
+TRANSLATE_PROMPT = """Translate the following academic paper abstract into \
+{language}. Output only the translation as a single paragraph (or two if the \
+original has two). Preserve any LaTeX math expressions ($...$ or $$...$$) \
+verbatim. Do not add headings, prefaces, or commentary. If the abstract is \
+already in {language}, output it unchanged.
+
+[Abstract]:
+{abstract}
+"""
+
+
 LANGUAGE_NAMES = {"zh": "Chinese", "en": "English"}
 
 
@@ -168,5 +179,46 @@ async def stream_summary(
     content = "".join(collected).strip()
     if content:
         db.save_summary(arxiv_id, lang, settings.openai_model, content)
+
+
+async def translate_abstract(arxiv_id: str, lang: str, force: bool = False) -> str:
+    """Return a cached or freshly-translated abstract for the given paper."""
+    settings = get_settings()
+    if not force:
+        cached = db.get_abstract_translation(arxiv_id, lang)
+        if cached:
+            return cached
+
+    paper = db.get_paper(arxiv_id)
+    if not paper:
+        raise ValueError(f"paper {arxiv_id!r} not found")
+
+    abstract = (paper.get("abstract") or "").strip()
+    if not abstract:
+        return ""
+
+    if settings.openai_api_key in ("", "sk-missing", "sk-replace-me"):
+        return abstract
+
+    prompt = TRANSLATE_PROMPT.format(
+        language=LANGUAGE_NAMES.get(lang, "English"),
+        abstract=abstract,
+    )
+
+    client = _client()
+    try:
+        resp = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=False,
+        )
+        translated = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        log.exception("translate_abstract failed for %s", arxiv_id)
+        return abstract
+
+    if translated:
+        db.save_abstract_translation(arxiv_id, lang, settings.openai_model, translated)
+    return translated or abstract
 
 

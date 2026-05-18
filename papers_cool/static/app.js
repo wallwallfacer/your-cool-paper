@@ -4,6 +4,7 @@
  *   #stared=<id>,<id>&include=<csv>&exclude=<csv>&highlight=<csv>&filter=0|1
  */
 (() => {
+  const BP = (typeof window !== 'undefined' && window.BASE_PATH) || '';
   const State = {
     stared: new Set(),
     include: [],
@@ -98,7 +99,7 @@
       Array.from(State.stared).forEach(id => {
         const li = document.createElement('li');
         const a  = document.createElement('a');
-        a.href = `/arxiv/${id}`;
+        a.href = `${BP}/arxiv/${id}`;
         a.textContent = id;
         const rm = document.createElement('button');
         rm.textContent = '×';
@@ -167,6 +168,32 @@
   }
 
   // ---- AI streaming --------------------------------------------------------
+  async function translateCardAbstract(card, lang, opts = {}) {
+    const absEl = card.querySelector('.abstract');
+    if (!absEl) return;
+    if (absEl.dataset.translatedLang === lang && !opts.force) return;
+    const original = absEl.dataset.originalText || absEl.textContent;
+    absEl.dataset.originalText = original;
+    absEl.dataset.translating = '1';
+    try {
+      const u = `${BP}/api/abstract/${encodeURIComponent(card.dataset.id)}?lang=${lang}${opts.force ? '&force=1' : ''}`;
+      const r = await fetch(u);
+      if (!r.ok) throw new Error('http ' + r.status);
+      const j = await r.json();
+      if (j.abstract) {
+        absEl.textContent = j.abstract;
+        absEl.dataset.translatedLang = lang;
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          window.MathJax.typesetPromise([absEl]).catch(() => {});
+        }
+      }
+    } catch (_) {
+      // leave original abstract in place on error
+    } finally {
+      absEl.dataset.translating = '';
+    }
+  }
+
   async function streamAI(card, opts = {}) {
     const pane    = card.querySelector('.ai-pane');
     const content = pane.querySelector('.ai-content');
@@ -179,7 +206,10 @@
     if (pane.dataset.loading === '1') return;
     pane.dataset.loading = '1';
 
-    let url = `/api/ai/${encodeURIComponent(card.dataset.id)}?lang=${lang}`;
+    // Replace the card abstract with a translation before streaming the FAQ.
+    await translateCardAbstract(card, lang, { force: !!opts.force });
+
+    let url = `${BP}/api/ai/${encodeURIComponent(card.dataset.id)}?lang=${lang}`;
     if (opts.force) url += '&force=1';
     content.innerHTML = '<em class="dim">Loading…</em>';
     let acc = '';
@@ -224,10 +254,10 @@
     pane.hidden = false;
     pane.innerHTML = '<em class="dim">Loading related…</em>';
     try {
-      const r = await fetch(`/api/related/${encodeURIComponent(card.dataset.id)}`);
+      const r = await fetch(`${BP}/api/related/${encodeURIComponent(card.dataset.id)}`);
       const j = await r.json();
       const items = (j.suggestions || []).map(p =>
-        `<li><a href="/arxiv/${p.arxiv_id}">${escapeHTML(p.title)}</a> <span class="dim">${p.arxiv_id}</span></li>`
+        `<li><a href="${BP}/arxiv/${p.arxiv_id}">${escapeHTML(p.title)}</a> <span class="dim">${p.arxiv_id}</span></li>`
       ).join('');
       pane.innerHTML = `
         <strong>Local matches (FTS5 on title):</strong>
@@ -345,6 +375,49 @@
     });
   }
 
+  // ---- Auto abstract translation (viewport-driven) ------------------------
+  function startAbstractAutoTranslate() {
+    const lang = State.lang || 'zh';
+    if (lang === 'en') return; // source language; nothing to translate
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const queue = [];
+    let active = 0;
+    const PARALLEL = 4;
+
+    const pump = () => {
+      while (active < PARALLEL && queue.length) {
+        const card = queue.shift();
+        active++;
+        translateCardAbstract(card, lang).catch(() => {}).finally(() => {
+          active--;
+          pump();
+        });
+      }
+    };
+
+    const seen = new WeakSet();
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const card = e.target;
+        obs.unobserve(card);
+        if (seen.has(card)) continue;
+        seen.add(card);
+        const a = card.querySelector('.abstract');
+        if (!a || a.dataset.translatedLang === lang) continue;
+        queue.push(card);
+        pump();
+      }
+    }, { rootMargin: '300px' });
+
+    document.querySelectorAll('.paper-card').forEach((card) => {
+      const a = card.querySelector('.abstract');
+      if (!a || a.dataset.translatedLang === lang) return;
+      obs.observe(card);
+    });
+  }
+
   // Boot
   document.addEventListener('DOMContentLoaded', () => {
     initState();
@@ -353,5 +426,6 @@
     wirePanels();
     localizeTimes();
     applyFilter();
+    startAbstractAutoTranslate();
   });
 })();

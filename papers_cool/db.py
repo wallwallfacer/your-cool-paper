@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS ai_summaries (
     PRIMARY KEY (arxiv_id, lang)
 );
 
+CREATE TABLE IF NOT EXISTS ai_abstracts (
+    arxiv_id   TEXT NOT NULL,
+    lang       TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (arxiv_id, lang)
+);
+
 CREATE TABLE IF NOT EXISTS fetch_log (
     category   TEXT NOT NULL,
     fetch_date TEXT NOT NULL,
@@ -306,6 +315,30 @@ def delete_summary(arxiv_id: str, lang: str) -> None:
         conn.execute(
             "DELETE FROM ai_summaries WHERE arxiv_id=? AND lang=?",
             (arxiv_id, lang),
+        )
+
+
+def get_abstract_translation(arxiv_id: str, lang: str) -> str | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT content FROM ai_abstracts WHERE arxiv_id=? AND lang=?",
+            (arxiv_id, lang),
+        ).fetchone()
+        return row["content"] if row else None
+
+
+def save_abstract_translation(arxiv_id: str, lang: str, model: str, content: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO ai_abstracts(arxiv_id, lang, model, content, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(arxiv_id, lang) DO UPDATE SET
+                model=excluded.model,
+                content=excluded.content,
+                created_at=excluded.created_at
+            """,
+            (arxiv_id, lang, model, content, _now_iso()),
         )
 
 

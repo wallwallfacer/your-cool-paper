@@ -52,6 +52,19 @@ class Settings(BaseSettings):
     site_password: str = ""
     auth_secret: str = ""
 
+    # Prefix for outbound URLs when served behind a path-mounted reverse proxy
+    # that strips the prefix (e.g. Tailscale Funnel --set-path=/papers).
+    base_path: str = ""
+
+    @property
+    def base_path_norm(self) -> str:
+        p = (self.base_path or "").strip()
+        if not p or p == "/":
+            return ""
+        if not p.startswith("/"):
+            p = "/" + p
+        return p.rstrip("/")
+
     @property
     def data_dir(self) -> Path:
         return _default_data_dir()

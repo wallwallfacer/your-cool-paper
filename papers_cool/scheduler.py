@@ -60,8 +60,8 @@ async def lazy_fetch_if_needed(category: str) -> None:
         # re-check after acquiring
         if db.has_fetch(category, today):
             return
-        log.info("lazy fetch %s for %s", category, today)
+        log.info("lazy fetch %s for %s (RSS-only)", category, today)
         try:
-            await arxiv_mod.fetch_categories([category], enrich=True, delay=1.0)
+            await arxiv_mod.fetch_categories([category], enrich=False, delay=0)
         except Exception:
             log.exception("lazy fetch failed for %s", category)

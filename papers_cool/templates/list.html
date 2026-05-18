@@ -3,7 +3,7 @@
 {% block body %}
 <header class="page-header">
   <h1>
-    <a href="/" class="home-link">papers.cool</a>
+    <a href="{{ base_path }}/" class="home-link">papers.cool</a>
     <span class="sep">/</span>
     <span class="cat-name">{{ category_slug }}</span>
   </h1>
@@ -22,9 +22,9 @@
   {% if all_categories %}
     <nav class="cat-nav">
       {% for cat in all_categories %}
-        <a href="/arxiv/{{ cat }}" class="cat-link {% if cat in categories %}active{% endif %}">{{ cat }}</a>
+        <a href="{{ base_path }}/arxiv/{{ cat }}" class="cat-link {% if cat in categories %}active{% endif %}">{{ cat }}</a>
       {% endfor %}
-      <a href="/arxiv/{{ all_categories | join(',') }}" class="cat-link">merged</a>
+      <a href="{{ base_path }}/arxiv/{{ all_categories | join(',') }}" class="cat-link">merged</a>
     </nav>
   {% endif %}
 </header>
@@ -56,7 +56,7 @@
     </header>
 
     <div class="authors">{{ paper.authors | join(', ') }}</div>
-    <div class="abstract">{{ paper.abstract }}</div>
+    <div class="abstract"{% if paper.abstract_translated_lang %} data-translated-lang="{{ paper.abstract_translated_lang }}"{% endif %}>{{ paper.abstract }}</div>
 
     <footer class="card-foot">
       <span class="subjects">

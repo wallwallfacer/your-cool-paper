@@ -58,10 +58,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                             status_code=401,
                             media_type="application/json")
 
-        nxt = request.url.path
+        bp = s.base_path_norm
+        nxt = bp + request.url.path
         if request.url.query:
             nxt += "?" + request.url.query
-        return RedirectResponse(url="/login?" + urlencode({"next": nxt}), status_code=303)
+        return RedirectResponse(
+            url=f"{bp}/login?" + urlencode({"next": nxt}),
+            status_code=303,
+        )
 
 
 router = APIRouter()
@@ -72,10 +76,10 @@ _LOGIN_HTML = """<!doctype html>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>papers.cool · login</title>
-<link rel="stylesheet" href="/static/style.css"/>
+<link rel="stylesheet" href="__BP__/static/style.css"/>
 </head><body>
 <main style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px">
-  <form method="post" action="/api/auth" style="max-width:320px;width:100%;display:flex;flex-direction:column;gap:12px;
+  <form method="post" action="__BP__/api/auth" style="max-width:320px;width:100%;display:flex;flex-direction:column;gap:12px;
        background:var(--card-bg);padding:24px;border-radius:14px;border:1px solid var(--border)">
     <h1 style="margin:0;font-size:20px">papers.cool</h1>
     <p class="dim" style="margin:0 0 4px">Enter password to continue.</p>
@@ -97,8 +101,10 @@ def _render_login(next_url: str, error: str | None = None) -> HTMLResponse:
     err_html = (
         f'<div style="color:#d6453c;font-size:13px">{error}</div>' if error else ""
     )
+    bp = get_settings().base_path_norm
     html = (
-        _LOGIN_HTML.replace("__NEXT__", _safe_next(next_url))
+        _LOGIN_HTML.replace("__BP__", bp)
+        .replace("__NEXT__", _safe_next(next_url))
         .replace("__ERROR__", err_html)
     )
     return HTMLResponse(html)
@@ -129,16 +135,18 @@ async def login_submit(
     next: str = Form("/"),
 ):
     s = get_settings()
+    bp = s.base_path_norm
+    home = f"{bp}/"
     if not (s.site_password and s.auth_secret):
         # Auth disabled; treat as success.
-        return RedirectResponse(url=next or "/", status_code=303)
+        return RedirectResponse(url=next or home, status_code=303)
 
     if not hmac.compare_digest(password, s.site_password):
         # Tiny delay to dampen guessing.
         time.sleep(0.3)
-        return _render_login(next or "/", error="Wrong password")
+        return _render_login(next or home, error="Wrong password")
 
-    safe = next if (next.startswith("/") and not next.startswith("//")) else "/"
+    safe = next if (next.startswith("/") and not next.startswith("//")) else home
     resp = RedirectResponse(url=safe, status_code=303)
     resp.set_cookie(
         key=COOKIE_NAME,
@@ -154,6 +162,7 @@ async def login_submit(
 
 @router.post("/api/logout")
 async def logout():
-    resp = RedirectResponse(url="/login", status_code=303)
+    bp = get_settings().base_path_norm
+    resp = RedirectResponse(url=f"{bp}/login", status_code=303)
     resp.delete_cookie(COOKIE_NAME, path="/")
     return resp

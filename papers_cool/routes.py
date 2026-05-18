@@ -17,6 +17,7 @@ from .config import get_settings
 log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.globals["base_path"] = get_settings().base_path_norm
 
 router = APIRouter()
 
@@ -71,6 +72,7 @@ async def arxiv_list(
     )
 
     papers = db.list_papers_by_categories(categories, date=date)
+    _apply_cached_translations(papers, settings.default_ai_lang)
     if not papers and date is None:
         # nothing yet - render empty list with helpful message
         pass
@@ -93,6 +95,17 @@ async def arxiv_list(
             "all_categories": settings.categories,
         },
     )
+
+
+def _apply_cached_translations(papers: list[dict], lang: str) -> None:
+    """Replace each paper's abstract with the cached translation when present."""
+    if not papers or lang == "en":
+        return
+    for p in papers:
+        cached = db.get_abstract_translation(p["arxiv_id"], lang)
+        if cached:
+            p["abstract"] = cached
+            p["abstract_translated_lang"] = lang
 
 
 def _looks_like_arxiv_id(s: str) -> bool:
@@ -121,6 +134,7 @@ async def _paper_detail(request: Request, raw_id: str) -> HTMLResponse:
         raise HTTPException(status_code=404, detail=f"paper {arxiv_id} not found")
 
     settings = get_settings()
+    _apply_cached_translations([paper], settings.default_ai_lang)
     return templates.TemplateResponse(
         request,
         "list.html",
@@ -179,6 +193,20 @@ async def api_related(arxiv_id: str):
         "labs_url": f"https://www.arxiv-sanity-lite.com/?rank=pid&pid={norm}",
         "suggestions": suggestions,
     }
+
+
+@router.get("/api/abstract/{arxiv_id}")
+async def api_abstract(arxiv_id: str, lang: str | None = None, force: int = 0):
+    settings = get_settings()
+    lang = (lang or settings.default_ai_lang).lower()
+    if lang not in ("zh", "en"):
+        lang = "en"
+    norm = arxiv_mod.normalize_arxiv_id(arxiv_id)
+    try:
+        text = await ai.translate_abstract(norm, lang, force=bool(force))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="paper not found")
+    return {"arxiv_id": norm, "lang": lang, "abstract": text}
 
 
 @router.get("/api/ai/{arxiv_id}")
