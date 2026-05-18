@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}papers.cool · home{% endblock %}
+{% block body %}
+<header class="page-header">
+  <h1>papers.cool <span class="dim">· local</span></h1>
+  <p class="dim">Personal arXiv reading mirror. Pick a category below.</p>
+</header>
+
+<main class="home-grid">
+  {% for cat in categories %}
+    <a class="cat-tile" href="{{ base_path }}/arxiv/{{ cat }}">
+      <span class="cat-code">{{ cat }}</span>
+    </a>
+  {% endfor %}
+  <a class="cat-tile combo" href="{{ base_path }}/arxiv/{{ categories | join(',') }}">
+    <span class="cat-code">all merged</span>
+  </a>
+</main>
+
+<section class="home-quick">
+  <h2>Custom combo</h2>
+  <form class="combo-form" onsubmit="event.preventDefault(); const v=this.cats.value.trim(); if(v) location.href='{{ base_path }}/arxiv/'+encodeURIComponent(v);">
+    <input name="cats" placeholder="cs.IR,cs.LG,cs.CL" />
+    <button>Open</button>
+  </form>
+
+  <h2>Open a specific paper</h2>
+  <form class="combo-form" onsubmit="event.preventDefault(); const v=this.id.value.trim(); if(v) location.href='{{ base_path }}/arxiv/'+encodeURIComponent(v);">
+    <input name="id" placeholder="2602.24277" />
+    <button>Open</button>
+  </form>
+</section>
+{% endblock %}
