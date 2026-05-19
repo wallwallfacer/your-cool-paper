@@ -1,56 +1,44 @@
 #!/usr/bin/env bash
-# Run the cloudflared quick-tunnel pointed at the local papers-cool server.
-# Same LaunchAgent management pattern as run-server.sh.
+# Manage the shared wstunnel LaunchAgent that exposes both dream-dict and
+# papers-cool through the Azure VPS via WebSocket over HTTPS.
 #
-# Install cloudflared:  brew install cloudflared
+# Usage:
+#   scripts/run-tunnel.sh         # run info (same as status)
+#   scripts/run-tunnel.sh start   # start tunnel LaunchAgent
+#   scripts/run-tunnel.sh stop    # stop tunnel LaunchAgent
+#   scripts/run-tunnel.sh restart # restart tunnel
+#   scripts/run-tunnel.sh status  # show tunnel status
+#   scripts/run-tunnel.sh url     # print public URL
 set -euo pipefail
 
-cd "$(cd "$(dirname "$0")/.." && pwd)"
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-
-LABEL="com.papers-cool.tunnel"
-PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+PUBLIC_URL="https://app.xingchendahai.org/papers/"
+LABEL="com.shared.wstunnel"
 TARGET="gui/$(id -u)/${LABEL}"
-LOG_DIR="$HOME/.papers-cool"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/tunnel.log"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 
-PORT="${PORT:-8000}"
-
-case "${1:-run}" in
-  run)
-    # quick-tunnel mode → generates a fresh https://<random>.trycloudflare.com on each start.
-    # Logs are appended; tunnel-url.sh greps the most recent URL out of the file.
-    exec /opt/homebrew/bin/cloudflared tunnel \
-        --no-autoupdate \
-        --url "http://127.0.0.1:${PORT}" \
-        --logfile "$LOG_FILE" \
-        --loglevel info
+case "${1:-status}" in
+  run|status)
+    launchctl print "$TARGET" 2>/dev/null | grep -E "state|pid" | head -3 || echo "not loaded"
+    echo "→ $PUBLIC_URL"
+    ;;
+  start)
+    launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null || launchctl kickstart "$TARGET"
+    sleep 2
+    "$0" status
+    ;;
+  stop)
+    launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null && echo "tunnel stopped" || echo "tunnel not running"
     ;;
   restart)
     launchctl kickstart -k "$TARGET"
-    sleep 4
-    "$(dirname "$0")/tunnel-url.sh"
-    ;;
-  status)
-    launchctl print "$TARGET" | grep -E "state|pid" | head -3
-    ;;
-  start)
-    launchctl bootstrap "gui/$(id -u)" "$PLIST"
-    sleep 4
-    "$(dirname "$0")/tunnel-url.sh"
-    ;;
-  stop)
-    launchctl bootout "gui/$(id -u)" "$PLIST"
-    ;;
-  logs)
-    exec tail -f "$LOG_FILE"
+    sleep 2
+    "$0" status
     ;;
   url)
     exec "$(dirname "$0")/tunnel-url.sh" "${2:-}"
     ;;
   *)
-    echo "usage: $0 [run|start|stop|restart|status|logs|url]" >&2
+    echo "usage: $0 [run|start|stop|restart|status|url]" >&2
     exit 2
     ;;
 esac

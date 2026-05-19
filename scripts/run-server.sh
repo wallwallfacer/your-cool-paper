@@ -20,7 +20,7 @@ HOST="${HOST:-0.0.0.0}"
 
 case "${1:-run}" in
   run)
-    # Bind 0.0.0.0 so cloudflared / Tailscale / LAN can reach it.
+    # Bind 0.0.0.0 so the SSH tunnel / LAN can reach it.
     exec /opt/homebrew/bin/uv run uvicorn papers_cool.main:app \
         --host "$HOST" --port "$PORT" --log-level info
     ;;
